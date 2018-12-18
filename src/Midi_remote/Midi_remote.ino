@@ -22,6 +22,11 @@ unsigned long debounceDelay = 50;
 int metronomeCount = 0;
 int PlayingNow = 0;
 
+int MinLimit = 0;
+int MaxLimit = 255;
+int location = MinLimit;
+int channel = 4;
+
 int Btn_1State;
 int Btn_1LastState = LOW;
 unsigned long Btn_1lastDebounceTime = 0;
@@ -76,10 +81,10 @@ void loop() {
     MidiCC(35,1);
   }
     if(ButtonDebounceRead(PIN_Btn_3, &Btn_3State, &Btn_3LastState, &Btn_3lastDebounceTime)==HIGH){
-    MidiCC(36,1);
+    decreaseBank(location, MinLimit, channel);
   }
     if(ButtonDebounceRead(PIN_Btn_4, &Btn_4State, &Btn_4LastState, &Btn_4lastDebounceTime)==HIGH){
-    MidiCC(37,1);
+    increaseBank(location, MaxLimit, channel);
   }
 }
 
@@ -115,6 +120,26 @@ int ButtonDebounceRead(int PinNum, int *SavedState, int *LastState, unsigned lon
   return state;
 }
 
+void increaseBank(int actualLocation, int limitMax, int outputChannel){
+    if(location!=limitMax){
+        location++;
+        AppleMIDI.sendControlChange(location,255,outputChannel);
+    }
+    else{
+      //Bank Overflow! Upper limit reached.
+    }
+}
+
+void decreaseBank(int actualLocation, int limitMin, int outputChannel){
+    if(location!=limitMin){
+        location--;
+        AppleMIDI.sendControlChange(location,255,outputChannel);
+    }
+    else{
+      //Bank Overflow! Lower limit reached
+    }
+}
+
 void OnAppleMidiConnected(uint32_t ssrc, char* name) {
   isConnected  = true;
   Serial.print(F("Connected to session "));
@@ -128,16 +153,13 @@ void OnAppleMidiDisconnected(uint32_t ssrc) {
 
 
 void Start(){
-  Serial.println("Start");
   PlayingNow = 1;
 }
 
 void Continue(){
-  Serial.println("Continue");
   PlayingNow = 1;
 }
 
 void Stop(){
-  Serial.println("Stop");
   PlayingNow = 0;
 }
