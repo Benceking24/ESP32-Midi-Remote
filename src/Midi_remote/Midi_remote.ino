@@ -26,6 +26,7 @@ int MinLimit = 0;
 int MaxLimit = 255;
 int location = MinLimit;
 int channel = 4;
+int bpmCount = 0;
 
 int Btn_1State;
 int Btn_1LastState = LOW;
@@ -70,6 +71,7 @@ void setup() {
     AppleMIDI.OnReceiveStart(Start);
     AppleMIDI.OnReceiveContinue(Continue);
     AppleMIDI.OnReceiveStop(Stop);
+    AppleMIDI.OnReceiveClock(tick);
 }
 
 void loop() {
@@ -86,6 +88,17 @@ void loop() {
     if(ButtonDebounceRead(PIN_Btn_4, &Btn_4State, &Btn_4LastState, &Btn_4lastDebounceTime)==HIGH){
     increaseBank(location, MaxLimit, channel);
   }
+}
+
+void tick(){
+  if(bpmCount==23){
+    digitalWrite(PIN_LED_Com,HIGH);
+    bpmCount=0;
+    }
+    else{
+      bpmCount++;
+      digitalWrite(PIN_LED_Com,LOW);
+      }
 }
 
 void PlayPause(int IsItPlayingNow){
