@@ -20,6 +20,7 @@ APPLEMIDI_CREATE_INSTANCE(WiFiUDP, AppleMIDI);
 unsigned long debounceDelay = 50;
 
 int metronomeCount = 0;
+int PlayingNow = 0;
 
 int Btn_1State;
 int Btn_1LastState = LOW;
@@ -61,25 +62,42 @@ void setup() {
     AppleMIDI.begin(deviceName);
     AppleMIDI.OnConnected(OnAppleMidiConnected);
     AppleMIDI.OnDisconnected(OnAppleMidiDisconnected);
+    AppleMIDI.OnReceiveStart(Start);
+    AppleMIDI.OnReceiveContinue(Continue);
+    AppleMIDI.OnReceiveStop(Stop);
 }
 
 void loop() {
   AppleMIDI.run();
-  ButtonDebounceRead(PIN_Btn_1, &Btn_1State, &Btn_1LastState, &Btn_1lastDebounceTime, 30, 1);
-  ButtonDebounceRead(PIN_Btn_2, &Btn_2State, &Btn_2LastState, &Btn_2lastDebounceTime, 31, 1);
-  ButtonDebounceRead(PIN_Btn_3, &Btn_3State, &Btn_3LastState, &Btn_3lastDebounceTime, 32, 1);
-  ButtonDebounceRead(PIN_Btn_4, &Btn_4State, &Btn_4LastState, &Btn_4lastDebounceTime, 33, 1);
-
+  if(ButtonDebounceRead(PIN_Btn_1, &Btn_1State, &Btn_1LastState, &Btn_1lastDebounceTime)==HIGH){
+    PlayPause(PlayingNow);
+  }
+  if(ButtonDebounceRead(PIN_Btn_2, &Btn_2State, &Btn_2LastState, &Btn_2lastDebounceTime)==HIGH){
+    MidiCC(35,1);
+  }
+    if(ButtonDebounceRead(PIN_Btn_3, &Btn_3State, &Btn_3LastState, &Btn_3lastDebounceTime)==HIGH){
+    MidiCC(36,1);
+  }
+    if(ButtonDebounceRead(PIN_Btn_4, &Btn_4State, &Btn_4LastState, &Btn_4lastDebounceTime)==HIGH){
+    MidiCC(37,1);
+  }
 }
 
-void MidiCC(byte inControlNumber, int State, byte inChannel){
-  
-    if(State==HIGH){
-        AppleMIDI.sendControlChange(inControlNumber,255,inChannel);
-      }
+void PlayPause(int IsItPlayingNow){
+  if(IsItPlayingNow){
+      AppleMIDI.sendControlChange(30,255,11);
   }
+  else{
+      AppleMIDI.sendControlChange(31,255,11); 
+  }
+}
 
-void ButtonDebounceRead(int PinNum, int *SavedState, int *LastState, unsigned long *LastDebounce, byte inControlNumber, byte inChannel){
+void MidiCC(byte inControlNumber, byte inChannel){
+        AppleMIDI.sendControlChange(inControlNumber,255,inChannel);
+  }
+  
+
+int ButtonDebounceRead(int PinNum, int *SavedState, int *LastState, unsigned long *LastDebounce){
   int reading = digitalRead(PinNum);
   int state = LOW;
   if (reading != *LastState) {
@@ -93,8 +111,8 @@ void ButtonDebounceRead(int PinNum, int *SavedState, int *LastState, unsigned lo
       }
     }
   }
-  MidiCC(inControlNumber, state, inChannel);
   *LastState = reading;
+  return state;
 }
 
 void OnAppleMidiConnected(uint32_t ssrc, char* name) {
@@ -106,4 +124,20 @@ void OnAppleMidiConnected(uint32_t ssrc, char* name) {
 void OnAppleMidiDisconnected(uint32_t ssrc) {
   isConnected  = false;
   Serial.println(F("Disconnected"));
+}
+
+
+void Start(){
+  Serial.println("Start");
+  PlayingNow = 1;
+}
+
+void Continue(){
+  Serial.println("Continue");
+  PlayingNow = 1;
+}
+
+void Stop(){
+  Serial.println("Stop");
+  PlayingNow = 0;
 }
