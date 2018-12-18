@@ -175,4 +175,5 @@ void Continue(){
 
 void Stop(){
   PlayingNow = 0;
+  bpmCount = 0;
 }
