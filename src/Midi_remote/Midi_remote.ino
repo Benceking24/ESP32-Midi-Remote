@@ -7,9 +7,9 @@
 #define PIN_Btn_2 32
 #define PIN_Btn_3 35
 #define PIN_Btn_4 34
-#define PIN_LED_Blt 4
-#define PIN_LED_Com 0
-#define PIN_LED_Oth 2
+#define PIN_DISPLAY_Data 16
+#define PIN_DISPLAY_Clock 4
+#define PIN_DISPLAY_Enable 0
 
 char ssid[] = "ssid";
 char pass[] = "pwd";
@@ -22,11 +22,12 @@ unsigned long debounceDelay = 50;
 int metronomeCount = 0;
 int PlayingNow = 0;
 
-int MinLimit = 0;
-int MaxLimit = 255;
+int MinLimit = 1;
+int MaxLimit = 99;
 int location = MinLimit;
 int channel = 4;
 int bpmCount = 0;
+int Display_Output[3] = {0,0,0};
 
 int Btn_1State;
 int Btn_1LastState = LOW;
@@ -49,9 +50,9 @@ void setup() {
    pinMode(PIN_Btn_2, INPUT);
    pinMode(PIN_Btn_3, INPUT);
    pinMode(PIN_Btn_4, INPUT);
-   pinMode(PIN_LED_Blt, OUTPUT);
-   pinMode(PIN_LED_Com, OUTPUT);
-   pinMode(PIN_LED_Oth, OUTPUT);
+   pinMode(PIN_DISPLAY_Data, OUTPUT);
+   pinMode(PIN_DISPLAY_Clock, OUTPUT);
+   pinMode(PIN_DISPLAY_Enable, OUTPUT);
   
    Serial.print(F("Getting IP address..."));
    WiFi.begin(ssid, pass);
@@ -72,6 +73,9 @@ void setup() {
     AppleMIDI.OnReceiveContinue(Continue);
     AppleMIDI.OnReceiveStop(Stop);
     AppleMIDI.OnReceiveClock(tick);
+
+    DisplayOn();
+    DisplayNumber(1);
 }
 
 void loop() {
@@ -92,12 +96,12 @@ void loop() {
 
 void tick(){
   if(bpmCount==23){
-    digitalWrite(PIN_LED_Com,HIGH);
+    FlipDp(0);
+    FlipDp(0);
     bpmCount=0;
     }
     else{
       bpmCount++;
-      digitalWrite(PIN_LED_Com,LOW);
       }
 }
 
@@ -136,20 +140,24 @@ int ButtonDebounceRead(int PinNum, int *SavedState, int *LastState, unsigned lon
 void increaseBank(int actualLocation, int limitMax, int outputChannel){
     if(location!=limitMax){
         location++;
+        DisplayNumber(location);
         AppleMIDI.sendControlChange(location,255,outputChannel);
     }
     else{
-      //Bank Overflow! Upper limit reached.
+      AppleMIDI.sendControlChange(location,255,outputChannel);
+      FlashScreen(2);
     }
 }
 
 void decreaseBank(int actualLocation, int limitMin, int outputChannel){
     if(location!=limitMin){
         location--;
+        DisplayNumber(location);
         AppleMIDI.sendControlChange(location,255,outputChannel);
     }
     else{
-      //Bank Overflow! Lower limit reached
+      AppleMIDI.sendControlChange(location,255,outputChannel);
+      FlashScreen(2);
     }
 }
 
@@ -176,4 +184,72 @@ void Continue(){
 void Stop(){
   PlayingNow = 0;
   bpmCount = 0;
+}
+
+void DisplayOn()
+// turns on display
+{
+ digitalWrite(PIN_DISPLAY_Enable, LOW);
+ shiftOut(PIN_DISPLAY_Data, PIN_DISPLAY_Clock, MSBFIRST, B00000001);
+ digitalWrite(PIN_DISPLAY_Enable, HIGH);
+ delay(10);
+}
+
+void DisplayOff()
+{
+ digitalWrite(PIN_DISPLAY_Enable, LOW);
+ shiftOut(PIN_DISPLAY_Data, PIN_DISPLAY_Clock, MSBFIRST, B00000000);
+ digitalWrite(PIN_DISPLAY_Enable, HIGH);
+ delay(10);
+}
+
+void DisplayPrintOutput(){
+  digitalWrite(PIN_DISPLAY_Enable, LOW);
+  shiftOut(PIN_DISPLAY_Data, PIN_DISPLAY_Clock, MSBFIRST, Display_Output[0]); // D23~D16
+  shiftOut(PIN_DISPLAY_Data, PIN_DISPLAY_Clock, MSBFIRST, Display_Output[1]); // D15~D8
+  shiftOut(PIN_DISPLAY_Data, PIN_DISPLAY_Clock, MSBFIRST, Display_Output[2]); // D7~D0
+  digitalWrite(PIN_DISPLAY_Enable, HIGH);
+  delay(10);
+  }
+
+void DisplayNumber(int n){
+  if(n>99){
+    n=n%100;
+  }
+  int firstDigit = n%10;
+  int secondDigit = n/10;
+  int result = (secondDigit<<4)|firstDigit;
+  Display_Output[0]=128;
+  Display_Output[1]=0;
+  Display_Output[2]=result;
+  DisplayPrintOutput();
+}
+
+void FlipDp(int nthDP){
+  int prefix=0; //9 = first digit, 10 = second digit
+  if(nthDP==0){
+    prefix = 9;
+    }
+  else if(nthDP==1){
+    prefix = 10;
+    }
+  int Hi_Nibble=(Display_Output[0]>>4)&0x0F;
+  int Lo_Nibble=Display_Output[0] & 0x0F;
+  if(Hi_Nibble==prefix){ //Be van kapcsolva az első
+      Display_Output[0]&=~(1<<4); //1001xxxx-ről 1000xxxx-re
+    }
+    else{                 //yyyyxxxx-ről 1001xxxx-re
+      Display_Output[0] = (prefix << 4) | Lo_Nibble; //Összefűzi a két felet
+    }
+   DisplayPrintOutput();
+}
+
+void FlashScreen(int numTimes){
+  int timeout = 50;
+  for(int i=0;i<numTimes;i++){;
+      DisplayOff();
+      delay(timeout);
+      DisplayOn();
+      delay(timeout);
+  }
 }
