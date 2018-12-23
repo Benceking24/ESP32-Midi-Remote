@@ -3,10 +3,10 @@
 #include <WiFiUdp.h>
 #include "AppleMidi.h"
 
-#define PIN_Btn_1 33
-#define PIN_Btn_2 32
-#define PIN_Btn_3 35
-#define PIN_Btn_4 34
+#define PIN_Btn_1 35 //Start
+#define PIN_Btn_2 34 //Repeate
+#define PIN_Btn_3 33 //Backward
+#define PIN_Btn_4 32 //Forward
 #define PIN_DISPLAY_Data 16
 #define PIN_DISPLAY_Clock 4
 #define PIN_DISPLAY_Enable 0
@@ -86,7 +86,7 @@ void loop() {
   if(ButtonDebounceRead(PIN_Btn_2, &Btn_2State, &Btn_2LastState, &Btn_2lastDebounceTime)==HIGH){
     MidiCC(35,1);
   }
-    if(ButtonDebounceRead(PIN_Btn_3, &Btn_3State, &Btn_3LastState, &Btn_3lastDebounceTime)==HIGH){
+    if(ButtonDebounceRead_Inverted(PIN_Btn_3, &Btn_3State, &Btn_3LastState, &Btn_3lastDebounceTime)==LOW){
     decreaseBank(location, MinLimit, channel);
   }
     if(ButtonDebounceRead(PIN_Btn_4, &Btn_4State, &Btn_4LastState, &Btn_4lastDebounceTime)==HIGH){
@@ -129,6 +129,25 @@ int ButtonDebounceRead(int PinNum, int *SavedState, int *LastState, unsigned lon
     if (reading != *SavedState) {
       *SavedState = reading;
       if (*SavedState == HIGH) {
+        state = !state;
+      }
+    }
+  }
+  *LastState = reading;
+  return state;
+}
+
+
+int ButtonDebounceRead_Inverted(int PinNum, int *SavedState, int *LastState, unsigned long *LastDebounce){
+  int reading = digitalRead(PinNum);
+  int state = HIGH;
+  if (reading != *LastState) {
+    *LastDebounce = millis();
+  }
+  if ((millis() - *LastDebounce) > debounceDelay) {
+    if (reading != *SavedState) {
+      *SavedState = reading;
+      if (*SavedState == LOW) {
         state = !state;
       }
     }
